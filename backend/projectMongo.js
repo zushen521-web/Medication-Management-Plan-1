@@ -22,6 +22,8 @@ let db, usersCollection,productCollection, actionCollection, tranCollection, dbN
 const admin = {
     username: "admin",
     password: "admin",
+    email:"",
+    cart:[],
     role: "admin",
 }
 async function connectDB(){
@@ -82,7 +84,7 @@ app.post('/api/login/user', async(req,res) =>{
     if (!username || !password) {
         return res.status(400).json({success: false, message: 'Username and password are required'});
     }
-    console.log(`${username} try to login with password: ${password}`);
+    console.log(`${username} try to login `);
     try {
         const user = await usersCollection.findOne({                
             $or:[
@@ -97,9 +99,24 @@ app.post('/api/login/user', async(req,res) =>{
         });
         if (user === null) {
             return res.status(400).json({success: false, message: 'Invalid username/email or password'});            }
-        req.session.userId = user._id;
-        req.session.role = user.role;
-        return res.status(200).json({success: true, message: 'Login successful', user: user});
+        req.session.regenerate((err) => {
+            if (err) {
+                console.error('Session regenerate error:', err);
+                return res.status(500).json({ success: false, message: 'Session error' });
+            }
+            req.session.userId = user._id;
+            req.session.role = user.role;
+            req.session.save((saveErr) => {
+                if (saveErr) {
+                    return res.status(500).json({ success: false, message: 'Session save error' });
+                }
+                return res.json({
+                    success: true,
+                    message: 'Login successful',
+                    user: { _id: user._id, username: user.username, email:user.email, cart: user.cart || [], role: user.role }
+                });
+            });
+        });
     } catch (error) {
         res.status(500).json({success: false, message: 'server error'});
     }
@@ -138,7 +155,9 @@ app.post("/api/create/user",async(req,res) =>{
             username: username,
             password: password,
             email: cleanEmail,
+            cart:[],
             role: "user"
+            
         };
         const result = await db.collection("users").insertOne(newUser);
         req.session.userId = result.insertedId.toString()
@@ -155,18 +174,81 @@ app.post("/api/create/user",async(req,res) =>{
     }
 });
 
+app.post('/api/forgotPassword', async(req, res) => {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    if(!email) {
+        return res.status(400).json({ success: false, message: 'Email is required' });
+    }
+    try{
+        const usersCollection = db.collection('users');
+        const user = await usersCollection.findOne({ email: email });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'No account found with this email' });
+        }
+        // const resetCode = Math.floor(10000 + Math.random() * 90000).toString();
+        return res.status(200).json({
+            success: true,
+            message: 'Password reset request accepted. (Simulated verification link/code sent!)'
+        });
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        return res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+app.post('/api/resetPassword', async (req, res) => {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const newPassword = String(req.body.newPassword || '');
+    if (!email || !newPassword) {
+        return res.status(400).json({ success: false, message: 'Email and new password are required' });
+    }
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*_])[A-Za-z\d!@#$%^&*_]{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+            return res.status(400).json({
+                success: false,
+                message: 'New password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters (!@#$%^&*_)'
+            });
+        }
+    try {
+        const usersCollection = db.collection('users');
+        const result = await usersCollection.updateOne(
+            { email: email },
+            { $set: { password: newPassword } }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        return res.status(200).json({ success: true, message: 'Password updated successfully!' });
+    } catch (error) {
+        console.error('Reset password error:', error);
+        return res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
 app.put("/api/user/password", isLoggedIn, async(req,res)=>{
     const userId = req.session.userId;
+    if (!userId) {
+        return res.status(401).json({ success: false, message: 'User not logged in' });
+    }
     const current_password = String(req.body.password);        
     const new_password = String(req.body.newPassword);
     if (!current_password || !new_password) {
         return res.status(400).json({success: false, message: 'Current and new passwords are required'});
     }
-    const usersCollection = db.collection("users")
     if (!userId) {
         return res.status(400).json({success: false, message: 'User not logged in'});
     }
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*_])[A-Za-z\d!@#$%^&*_]{8,}$/;
+    if (!passwordRegex.test(new_password)) {
+        return res.status(400).json({
+            success: false,
+            message: 'New password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters (!@#$%^&*_)'
+        });
+    }
     try{
+        const usersCollection = db.collection("users")
         const user = await usersCollection.findOne({
             _id: new ObjectId(userId),
             password: current_password
@@ -199,14 +281,14 @@ app.get('/api/user', isLoggedIn, async(req, res) => {
         if (!user) {
             return res.status(404).json({success: false, loggedIn: false, message: 'User not found'});
         }
-        res.status(200).json({success: true, loggedIn: true, user: {username: user.username, email: user.email, role: user.role}});
+        res.status(200).json({success: true, loggedIn: true, user: {username: user.username, email: user.email, cart: user.cart || [], role: user.role}});
     } catch (error) {
         console.error(`Failed to find user : ${error}`);
         res.status(500).send({success: false, message: 'Server error'});
     }
 });
 
-app.put("/api/updata/user/", isUser, async(req,res)=>{
+app.put("/api/updata/user", isLoggedIn, async(req,res)=>{
     const usersCollection = db.collection("users")
     const userId = req.session.userId;
     const newName = String(req.body.username || '').trim();
@@ -228,6 +310,32 @@ app.put("/api/updata/user/", isUser, async(req,res)=>{
     }catch(error) {
         console.error(`Failed to change user detail: ${error}`)
         res.status(500).send({success: false, message: 'Server error' })
+    }
+});
+
+app.post("/api/search/users", isAdmin, async (req, res) => {
+    const keyword = String(req.body.keyword || '').trim();
+    const usersCollection = db.collection("users");
+    try {
+        let query = {};
+        if (keyword) {
+            const isValidObjectId = /^[0-9a-fA-F]{24}$/.test(keyword);
+            if (isValidObjectId) {
+                query = { _id: new ObjectId(keyword) };
+            } else {
+                query = {
+                    $or: [
+                        { username: { $regex: keyword,$options: 'i' } },
+                        { email: { $regex: keyword,$options: 'i' } }
+                    ]
+                };
+            }
+        }
+        const users = await usersCollection.find(query, { projection: { password: 0 } }).toArray();
+        return res.status(200).json({ success: true, users });
+    } catch (error) {
+        console.error(`Failed to search users: ${error}`);
+        return res.status(500).json({ success: false, message: 'Server error' });
     }
 });
 
@@ -308,6 +416,7 @@ app.post("/api/add/admin", isAdmin, async(req,res)=>{
             username: username,
             password: password,
             email: email,
+            cart:[],
             role: "admin"
         };
         const result = await usersCollection.insertOne(newAdmin);

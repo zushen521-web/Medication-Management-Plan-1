@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Registration</title>
+    <link rel="stylesheet" href="/login.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo-placeholder"><!--put logo here--></div>
+        <h1 class="login-title">Sign up </h1>
+        <div id="errorMsg" class="error-msg"></div>
+        <form id="signinForm" class="login-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required autocomplete="username">
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email address</label>
+                <input type="email" id="email" name="email" required autocomplete="email">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required autocomplete="new-password">
+                <span class="form-hint">At least 8 characters, containing uppercase & lowercase letters, numbers, and special characters (!@#$%^&*_).</span>
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password">
+            </div>
+
+            <button type="submit" class="btn-primary">Create account</button>
+        </form>
+        <div class="signup-wrapper">
+            Already have an account? 
+            <a href="/login">Sign In</button>
+        </div>
+    </div>
+    <%- include('partials/loginModal') %>
+    <script>
+        document.getElementById('signinForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errorMsg = document.getElementById('errorMsg');
+            errorMsg.innerText = '';
+            errorMsg.style.display = 'none';
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (password !== confirmPassword) {
+                errorMsg.innerText = 'Passwords do not match!';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            try {
+                const res = await fetch('/auth/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password, confirmPassword })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    //alert('Registration successful and logged in!');
+                    window.location.href = '/user';
+                } else if (res.status === 400) {
+                    errorMsg.innerText = data.message || 'Registration failed';
+                    errorMsg.style.display = 'block';
+                } else if (res.status >= 500) {
+                    errorMsg.innerText = 'Server error (500), please try again later.';
+                    errorMsg.style.display = 'block';
+                } else {
+                    errorMsg.innerText = data.message || 'Registration failed.';
+                    errorMsg.style.display = 'block';
+                }
+            } catch (err) {
+                errorMsg.innerText = 'System error, please try again later.';
+                errorMsg.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

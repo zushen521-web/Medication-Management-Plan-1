@@ -28,12 +28,27 @@ function isLoggedIn(req, res, next) {
         message: 'Access denied. Please login first.' 
     });
 }
+function isAdmin(req, res, next){
+    if (req.user && req.user.role === 'admin'){
+        return next();
+    }
+    return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin role required.'
+    });
+}
 function getForwardHeaders(req) {
     const headers = {};
     if (req.headers && req.headers.cookie) {
         headers['Cookie'] = req.headers.cookie;
     }
     return headers;
+}
+function redirectIfLoggedIn(req, res, next) {
+    if (req.user && req.user.role !== 'guest') {
+        return res.redirect('/user'); 
+    }
+    next();
 }
 function handleCookieResponse(backendResponse, expressRes) {
     const setCookie = backendResponse.headers['set-cookie'];
@@ -64,6 +79,20 @@ function setGuestUser(req, res) {
     res.locals.currentUser = guestUser;
 }
 
+//UserRoute   (Please add "const user = req.user" when you need user information)
+app.use((req, res, next) => {
+    if (!req.session) req.session = {};
+    if (!req.session.cart) req.session.cart = [];
+    req.user = {
+        _id: req.session.userId || "",
+        username: req.session.username || "Guest",
+        email: req.session.email || "",
+        role: req.session.role || "guest",
+        cart: req.session.cart
+    };
+    next();
+});
+
 app.use(checkLoggedIn);
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
@@ -71,52 +100,122 @@ app.use(express.static(path.join(__dirname, 'public')))
 app.set('views', path.resolve(__dirname, 'views'))
 app.set("view engine", "ejs")
 
-app.get('/login', async(req,res)=>{
+app.get('/login', redirectIfLoggedIn, async(req,res)=>{
      res.render('login.ejs')
 });
 
-app.get('/signin', async(req,res)=>{
-    res.render('signin.ejs')
+app.get('/signup', redirectIfLoggedIn, async(req,res)=>{
+    res.render('signup.ejs')
 });
 
-app.get('/user', isLoggedIn, async (req, res) => {
+app.get('/user', async (req, res) => {
     res.render('user.ejs')
+});
+
+app.get('/forgotPassword', redirectIfLoggedIn,  async(req, res)=>{
+    res.render('passwordReset.ejs')
+});
+
+app.get('/resetPassword/:email', redirectIfLoggedIn, async(req, res)=>{
+    res.render('resetPassword.ejs')
 });
 
 app.get('/changePassword', isLoggedIn, async(req, res)=>{
     res.render('password.ejs')
 });
 
+app.get('/userList', isAdmin, async(req, res)=> {
+    res.render('userList.ejs')
+});
+
+app.get('/addAdmin', isAdmin, async(req, res)=>{
+    res.render('addAdmin.ejs')
+});
+
 app.post('/auth/login', async(req, res)=>{
     try{
         const { username, password } = req.body;
-        const response = await api.post('/api/login', {
+        const response = await api.post('/api/login/user', {
             username, password
         });
         handleCookieResponse(response, res);
         res.json(response.data);
     } catch (error) {
-        const errorData = error.response ? error.response.data : {};
-        res.status(error.response?.status || 500).json({
+        const status = error.response?.status || 500;
+        const errorData = error.response?.data || {};
+        const errorMessage = errorData.message || 'Login failed';
+        return res.json({
             success: false,
-            message: errorData.message || 'Login failed'
+            message: errorMessage || 'Login request failed'
         });
     }
 });
 
-app.post('/auth/signin', async(req, res)=>{
+app.post('/auth/signup', async(req, res)=>{
     try{
         const { username, password, confirmPassword, email } = req.body;
+        if (!username || !password || !confirmPassword || !email) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'All fields are required' 
+            });
+        }
+        if (password !== confirmPassword) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Passwords do not match' 
+            });
+        }
         const response = await api.post('/api/create/user', {
             username, password, confirmPassword, email
         });
         handleCookieResponse(response, res);
         return res.json(response.data);
     } catch (error) {
-        const errorData = error.response ? error.response.data : {};
-        res.status(error.response?.status || 500).json({
+        const status = error.response?.status || 500;
+        const errorData = error.response?.data || {};
+        console.error(`[Signup Failed] Status: ${status}, Message: ${errorData.message || error.message}`);
+        res.status(status).json({
             success: false,
             message: errorData.message || 'register failed'
+        });
+    }
+});
+
+app.post('/auth/forgotPassword', async(req, res)=> {
+    const { email } = req.body;
+    try{
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'Email is required' });
+        }
+        const response = await api.post('/api/forgotPassword', { email });
+        return res.json(response.data);
+    } catch (error) {
+        const errorData = error.response ? error.response.data : {};
+        return res.status(error.response?.status || 500).json({
+            success: false,
+            message: errorData.message || 'Password reset request failed'
+        });
+    }
+});
+
+app.post('/auth/resetPassword/:email', async (req, res) => {
+    try {
+        const { email } = req.params;
+        const { newPassword, confirmPassword } = req.body;
+        if (!email || !newPassword || !confirmPassword) {
+            return res.status(400).json({ success: false, message: 'All fields are required' });
+        }
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ success: false, message: 'Passwords do not match' });
+        }
+        const response = await api.post('/api/resetPassword', { email, newPassword });
+        return res.json(response.data);
+    } catch (error) {
+        const errorData = error.response ? error.response.data : {};
+        return res.status(error.response?.status || 500).json({
+            success: false,
+            message: errorData.message || 'Failed to reset password'
         });
     }
 });
@@ -140,7 +239,7 @@ app.post('/auth/logout', isLoggedIn, async(req, res)=>{
 app.post('/auth/updata', isLoggedIn, async(req, res) => {
     try{
         const {username, email} = req.body;
-        const response = await api.put('/api/updata/user/', 
+        const response = await api.put('/api/updata/user', 
             {username, email}, 
             {headers: getForwardHeaders(req)}
         );
@@ -164,6 +263,19 @@ app.post('/auth/change-password', isLoggedIn, async(req, res) => {
                 message: 'Current and new passwords are required' 
             });
         }
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*_])[A-Za-z\d!@#$%^&*_]{8,}$/;
+        if (!passwordRegex.test(newPassword)) {
+            return res.status(400).json({
+                success: false,
+                message: 'New password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters (!@#$%^&*_)'
+            });
+        }
+        if (password === newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'New password cannot be the same as the current password'
+            });
+        }
         const response = await api.put('/api/user/password',
             {
                 password: password,
@@ -180,6 +292,96 @@ app.post('/auth/change-password', isLoggedIn, async(req, res) => {
         });
     }
 });
+
+app.get('/auth/allUser', isAdmin, async(req, res)=>{
+    try{
+        const response = await api.post('/api/allUsers', {}, {
+            headers: getForwardHeaders(req)
+        });
+        return res.json(response.data);
+    } catch (error) {
+        const errorData = error.response? error.response.data: {};
+        res.status(error.response?.status || 500).json({
+            success: false,
+            message: errorData.message || 'user list error'
+        });
+    }
+})
+
+app.post('/auth/findUsers', isAdmin, async(req, res) => {
+    try{ 
+        const keyword = String(req.body.keyword||'').trim();
+        const response = await api.post('/api/search/users',
+            {keyword},
+            {headers: getForwardHeaders(req)}
+        );
+        return res.json(response.data);
+    } catch (error) {
+        const errorData = error.response ? error.response.data : {};
+        return res.status(error.response?.status || 500).json({
+            success: false,
+            message: errorData.message || 'Find users failed'
+        });
+    }
+});
+
+app.delete('/auth/deleteUser/:id', isAdmin, async(req, res)=>{
+    try{
+        const targetUserId = req.params.id;
+        if (!targetUserId) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'User ID is required' 
+            });
+        }
+        const response = await api.delete(`/api/user/${targetUserId}`, {
+            headers: getForwardHeaders(req)
+        });
+        return res.json(response.data);
+    } catch (error) {
+        const errorData = error.response ? error.response.data : {};
+        return res.status(error.response?.status || 500).json({
+            success: false,
+            message: errorData.message || 'Delete user failed'
+        });
+    }
+});
+
+app.post('/auth/addAdmin', isAdmin, async(req, res)=>{
+    const { username, password, confirmPassword, email } = req.body;
+    try{
+        if (!username || !password || !confirmPassword || !email) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'All fields are required' 
+            });
+        }
+        if (password !== confirmPassword) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Passwords do not match' 
+            });
+        }
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*_])[A-Za-z\d!@#$%^&*_]{8,}$/;
+        if (!passwordRegex.test(password)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters (!@#$%^&*_)'
+            });
+        }
+        const response = await api.post('/api/add/admin', 
+            { username, password, email },
+            { headers: getForwardHeaders(req)}
+        );
+        return res.json(response.data)
+    } catch (error) {
+        const errorData = error.response ? error.response.data : {};
+        return res.status(error.response?.status || 500).json({
+            success: false,
+            message: errorData.message || 'Failed to add admin'
+        });
+    }
+}); 
 
 
 

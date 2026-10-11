@@ -1,0 +1,320 @@
+/* 全域基礎設定 */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* 全螢幕背景與居中 */
+body {
+    background-color: #ffffff; 
+    color: #1f2328;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px;
+}
+
+hr {
+    width: 100%;
+    border: none;
+    border-top: 1px solid #d0d7de;
+    margin: 24px 0;
+}
+
+/* 登入主容器 (無外框、無卡片陰影) */
+.login-container {
+    width: 100%;
+    max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* 頂部 Logo 預留空區塊 */
+.logo-placeholder {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 20px;
+}
+
+/* 主標題 */
+.login-title {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+/* 錯誤提示訊息 */
+.error-msg {
+    width: 100%;
+    color: #cf222e;
+    background-color: #ffebe9;
+    border: 1px solid rgba(255, 129, 130, 0.4);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+}
+/*成功提示訊息*/
+.success-msg {
+    width: 100%;
+    color: #1f883d;
+    background-color: #dafbe1;
+    border: 1px solid rgba(74, 194, 107, 0.4);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none; /* 預設隱藏 */
+}
+
+/* 表單容器 */
+.login-form {
+    width: 100%;
+}
+
+/* 表單欄位群組 */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.label-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1f2328;
+}
+
+/* 忘記密碼連結 */
+.forgot-link {
+    font-size: 12px;
+    color: #0969da;
+    text-decoration: none;
+}
+
+.forgot-link:hover {
+    text-decoration: underline;
+}
+
+.form-hint {
+    display: block;
+    font-size: 12px;
+    color: #57606a;
+    margin-top: 6px;
+    line-height: 1.4;
+}
+
+/* 輸入框樣式 */
+input[type="text"],
+input[type="password"],
+input[type="email"] {
+    width: 100%;
+    padding: 6px 12px;
+    font-size: 14px;
+    line-height: 20px;
+    color: #1f2328;
+    background-color: #ffffff;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+/*Disabled 唯讀狀態輸入框樣式 */
+input[type="text"]:disabled,
+input[type="email"]:disabled {
+    background-color: #f6f8fa;
+    color: #57606a;
+    border-color: #d0d7de;
+    cursor: not-allowed;
+}
+
+/* 輸入框 Focus 藍框高亮 */
+input[type="text"]:focus,
+input[type="password"]:focus {
+    border-color: #0969da;
+    box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
+}
+
+/* 綠色登入按鈕 */
+.btn-primary {
+    width: 100%;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    color: #ffffff;
+    background-color: #1f883d;
+    border: 1px solid rgba(31, 35, 40, 0.15);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+    margin-top: 8px;
+}
+
+.btn-primary:hover {
+    background-color: #1a7f37;
+}
+
+.btn-secondary {
+    width: 100%;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    color: #1f2328;             
+    background-color: #f6f8fa;  
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out;
+}
+
+.btn-secondary:hover {
+    background-color: #f3f4f6;
+}
+
+.btn-danger {
+    width: 100%;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 20px;
+    color: #cf222e;             
+    background-color: #f6f8fa;  
+    border: 1px solid #d0d7de;  
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out, color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+.btn-danger:hover {
+    color: #ffffff;             
+    background-color: #cc0f2f;  
+    border-color: #c70928;
+}
+
+.btn-group button {
+    flex: 1;
+}
+
+.btn-group {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+
+/* 底部註冊引導 */
+.signup-wrapper {
+    margin-top: 24px;
+    text-align: center;
+    font-size: 14px;
+    color: #57606a;
+}
+
+.signup-wrapper a {
+    color: #0969da;
+    text-decoration: none;
+}
+
+.signup-wrapper a:hover {
+    text-decoration: underline;
+}
+
+
+/* 高斯模糊背景遮罩 */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+/* 玻璃框卡片 */
+.glass-card {
+    position: relative;
+    background: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    padding: 30px;
+    width: 340px;
+    color: #fff;
+}
+
+.close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+/*提示訊息與下方連結區塊 */
+.msg-container {
+    width: 100%;
+    font-size: 13px;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+hr {
+    width: 100%;
+    border: none;
+    border-top: 1px solid #d0d7de;
+    margin: 24px 0;
+}
+
+.profile-links {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.profile-links a {
+    color: #0969da;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.profile-links a:hover {
+    text-decoration: underline;
+}
+
+.guest-box {
+    width: 100%;
+    text-align: center;
+}
+
+.guest-box p {
+    font-size: 14px;
+    color: #57606a;
+    margin-bottom: 12px;
+}

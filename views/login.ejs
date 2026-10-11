@@ -2,27 +2,36 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>User Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in</title>
+    <link rel="stylesheet" href="/login.css">
 </head>
 <body>
-    <div>
-        <h2>User Login</h2>
-        <div id="errorMsg" style="color: red;"></div>
+    <div class="login-container">
+        <div class="logo-placeholder"><!--put logo here--></div>
+        <h1 class="login-title">Sign in</h1>
+        <div id="errorMsg" class="error-msg";"></div>
+        <div class="login-card">
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username or email address</label>
+                    <input type="text" id="username" name="username" required autocomplete="username">
+                </div>
 
-        <form id="loginForm">
-            <div>
-                <label for="username">Username / Email:</label>
-                <input type="text" id="username" name="username" required>
-            </div>
-            <div>
-                <label for="password">Password:</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            <button type="submit">Login</button>
-            <p>Don't have an account? <a href="/signin">Register here</a></p>
-        </form>
-    </div>
+                <div class="form-group">
+                    <div class="label-wrapper">
+                        <label for="password">Password</label>
+                        <a href="/forgotPassword" class="forgot-link">Forgot password?</a>
+                    </div>
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                </div>
 
+                <button type="submit" class="btn-primary">Sign in</button>
+            </form>
+        </div>
+        <div class="signup-wrapper">
+            New user?<a href="/signup"> Create an account</a>
+        </div>
     <script>
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -38,14 +47,18 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username, password })
                 });
-
                 const data = await res.json();
-
-                if (data.success) {
-                    alert('Login successful!');
+                if (res.ok && data.success) {
                     window.location.href = '/user';
+                } else if (res.status === 400 || res.status === 401) {
+                    errorMsg.innerText = data.message || 'Invalid username or password.';
+                    errorMsg.style.display = 'block';
+                } else if (res.status >= 500) {
+                    errorMsg.innerText = 'Server error (500). Please try again later.';
+                    errorMsg.style.display = 'block';
                 } else {
-                    errorMsg.innerText = data.message || 'Login failed';
+                    errorMsg.innerText = data.message || 'Login failed.';
+                    errorMsg.style.display = 'block';
                 }
             } catch (err) {
                 errorMsg.innerText = 'System error, please try again later.';

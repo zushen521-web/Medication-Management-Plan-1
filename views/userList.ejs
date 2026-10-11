@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User List - Admin Panel</title>
+    <link rel="stylesheet" href="/login.css">
+    <style>
+        .admin-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .admin-nav {
+            display: flex;
+            gap: 12px;
+        }
+
+        .admin-nav a {
+            color: #0969da;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .admin-nav a:hover {
+            text-decoration: underline;
+        }
+
+        .search-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .search-bar input {
+            flex: 1;
+        }
+
+        .search-bar button {
+            width: auto;
+            padding: 6px 12px;
+            white-space: nowrap;
+        }
+
+        .data-table-container {
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        .data-table th {
+            background-color: #f6f8fa;
+            color: #1f2328;
+            font-weight: 600;
+            padding: 10px 12px;
+            border-bottom: 1px solid #d0d7de;
+        }
+
+        .data-table td {
+            padding: 10px 12px;
+            color: #1f2328;
+            vertical-align: middle;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tr:hover {
+            background-color: #f6f8fa;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 12px;
+            text-transform: capitalize;
+        }
+
+        .role-admin {
+            background-color: #ddf4ff;
+            color: #0969da;
+            border: 1px solid rgba(54, 150, 250, 0.2);
+        }
+
+        .role-user {
+            background-color: #f6f8fa;
+            color: #57606a;
+            border: 1px solid #d0d7de;
+        }
+
+        .action-btn {
+            padding: 4px 10px;
+            font-size: 12px;
+            width: auto;
+            margin-top: 0;
+        }
+
+        .text-muted {
+            color: #57606a;
+            font-size: 12px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <div>
+                <h1 class="login-title" style="text-align: left; margin-bottom: 4px;">User Management</h1>
+                <p class="form-hint">Logged in as: <strong><%= currentUser.username %></strong> (<%= currentUser.role %>)</p>
+            </div>
+            <div class="admin-nav">
+                <a href="/addAdmin">+ Create Admin</a>
+                <a href="/user">Back to Profile</a>
+            </div>
+        </div>
+        <hr style="margin: 16px 0 24px 0;">
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="Search by User ID, Username, or Email...">
+            <button type="button" id="searchBtn" class="btn-primary" style="margin-top: 0;">Search</button>
+            <button type="button" id="resetBtn" class="btn-secondary">Reset</button>
+        </div>
+        <div id="msgBox"></div>
+        <div class="data-table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>User ID</th>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th style="text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody">
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        const currentUserId = "<%= currentUser._id %>";
+        async function fetchAndRenderUsers(keyword = '') {
+            const msgBox = document.getElementById('msgBox');
+            msgBox.innerText = '';
+            msgBox.className = '';
+            msgBox.style.display = 'none';
+            try {
+                const res = await fetch('/auth/findUsers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keyword })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    const tbody = document.getElementById('userTableBody');
+                    tbody.innerHTML = '';
+
+                    if (!data.users || data.users.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #57606a; padding: 24px;">No users found.</td></tr>';
+                        return;
+                    }
+
+                    data.users.forEach(user => {
+                        const tr = document.createElement('tr');
+                        const isSelf = String(user._id) === String(currentUserId);
+                        const roleClass = user.role === 'admin' ? 'role-admin' : 'role-user';
+
+                        tr.innerHTML = `
+                            <td style="font-family: monospace; font-size: 13px;">${user._id}</td>
+                            <td><strong>${user.username}</strong></td>
+                            <td>${user.email || 'N/A'}</td>
+                            <td><span class="role-badge ${roleClass}">${user.role}</span></td>
+                            <td style="text-align: right;">
+                                ${isSelf 
+                                    ? '<span class="text-muted">You</span>' 
+                                    : `<button class="btn-danger action-btn" onclick="deleteUser('${user._id}', '${user.username}')">Delete</button>`
+                                }
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    msgBox.className = 'error-msg';
+                    msgBox.innerText = data.message || 'Failed to fetch users.';
+                    msgBox.style.display = 'block';
+                }
+            } catch (err) {
+                msgBox.className = 'error-msg';
+                msgBox.innerText = 'System error while fetching users.';
+                msgBox.style.display = 'block';
+            }
+        }
+        async function deleteUser(userId, username) {
+            if (!confirm(`Are you sure you want to delete user "${username}"?`)) return;
+
+            const msgBox = document.getElementById('msgBox');
+            msgBox.innerText = '';
+            msgBox.className = '';
+            msgBox.style.display = 'none';
+
+            try {
+                const res = await fetch(`/auth/deleteUser/${userId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    msgBox.className = 'success-msg';
+                    msgBox.innerText = `User "${username}" deleted successfully.`;
+                    msgBox.style.display = 'block';
+
+                    const keyword = document.getElementById('searchInput').value;
+                    fetchAndRenderUsers(keyword);
+                } else {
+                    msgBox.className = 'error-msg';
+                    msgBox.innerText = data.message || 'Delete user failed.';
+                    msgBox.style.display = 'block';
+                }
+            } catch (err) {
+                msgBox.className = 'error-msg';
+                msgBox.innerText = 'System error during deletion.';
+                msgBox.style.display = 'block';
+            }
+        }
+
+        // 事件監聽
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            const keyword = document.getElementById('searchInput').value.trim();
+            fetchAndRenderUsers(keyword);
+        });
+
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const keyword = document.getElementById('searchInput').value.trim();
+                fetchAndRenderUsers(keyword);
+            }
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            document.getElementById('searchInput').value = '';
+            fetchAndRenderUsers('');
+        });
+
+        // 初次載入
+        fetchAndRenderUsers();
+    </script>
+</body>
+</html>

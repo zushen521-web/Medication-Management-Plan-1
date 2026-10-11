@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Admin - Admin Panel</title>
+    <link rel="stylesheet" href="/login.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo-placeholder"></div>
+        <h1 class="login-title">Create Admin Account</h1>
+        <div id="msgBox"></div>
+        <form id="addAdminForm" class="login-form">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" required autocomplete="username">
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email address</label>
+                <input type="email" id="email" name="email" required autocomplete="email">
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required autocomplete="new-password">
+                <span class="form-hint">At least 8 characters, containing uppercase & lowercase letters, numbers, and special characters (!@#$%^&*_).</span>
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" required autocomplete="new-password">
+            </div>
+
+            <button type="submit" class="btn-primary">Add Admin</button>
+        </form>
+        <div class="signup-wrapper">
+            <a href="/userList">Back to User List</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('addAdminForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const msgBox = document.getElementById('msgBox');
+            msgBox.innerText = '';
+            msgBox.className = '';
+            msgBox.style.display = 'none';
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*_])[A-Za-z\d!@#$%^&*_]{8,}$/;
+            if (!passwordRegex.test(password)) {
+                msgBox.className = 'error-msg';
+                msgBox.innerText = 'Password must be at least 8 characters long and contain uppercase, lowercase, numbers, and special characters (!@#$%^&*_).';
+                msgBox.style.display = 'block';
+                return;
+            }
+            if (password !== confirmPassword) {
+                msgBox.className = 'error-msg';
+                msgBox.innerText = 'Passwords do not match!';
+                msgBox.style.display = 'block';
+                return;
+            }
+            try {
+                const res = await fetch('/auth/addAdmin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password, confirmPassword })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    msgBox.className = 'success-msg';
+                    msgBox.innerText = 'Admin account created successfully!';
+                    msgBox.style.display = 'block';
+                    document.getElementById('addAdminForm').reset();
+                } else if (res.status === 400) {
+                    msgBox.className = 'error-msg';
+                    msgBox.innerText = data.message || 'Invalid input or user already exists.';
+                    msgBox.style.display = 'block';
+                } else if (res.status === 403) {
+                    msgBox.className = 'error-msg';
+                    msgBox.innerText = 'Access denied. Admin permissions required.';
+                    msgBox.style.display = 'block';
+                } else if (res.status >= 500) {
+                    msgBox.className = 'error-msg';
+                    msgBox.innerText = 'Server error (500), please try again later.';
+                    msgBox.style.display = 'block';
+                } else {
+                    msgBox.className = 'error-msg';
+                    msgBox.innerText = data.message || 'Failed to add admin.';
+                    msgBox.style.display = 'block';
+                }
+            } catch (err) {
+                msgBox.className = 'error-msg';
+                msgBox.innerText = 'System connection error, please try again later.';
+                msgBox.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -2,80 +2,126 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Profile</title>
+    <link rel="stylesheet" href="/login.css">
 </head>
 <body>
-    <div>
-        <h2>User Profile Settings</h2>
-        <div id="msg"></div>
+    <div class="login-container">
+        <div class="logo-placeholder"></div>
+        <h1 class="login-title">User Profile</h1>
+        <div id="msg" class="msg-container"></div>
+        <% if (currentUser && currentUser.role !== 'guest') { %>
+            <form id="profileForm" class="login-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" value="<%= currentUser.username %>" disabled required>
+                </div>
 
-        <form id="profileForm">
-            <div>
-                <label for="username">Username:</label>
-                <input type="text" id="username" name="username" value="<%= currentUser.username %>" required>
+                <div class="form-group">
+                    <label for="email">Email Address</label>
+                    <input type="email" id="email" name="email" value="<%= currentUser.email || '' %>" disabled required>
+                </div>
+                <button type="button" id="editBtn" class="btn-secondary">Edit Profile</button>
+                <div id="actionBtns" class="btn-group" style="display: none; margin-top: 8px;">
+                    <button type="submit" class="btn-primary" style="margin-top: 0; width: auto;">Save</button>
+                    <button type="button" id="cancelBtn" class="btn-secondary" style="margin-top: 0; width: auto;">Cancel</button>
+                </div>
+            </form>
+            <hr>
+            <div class="profile-links">
+                <% if (currentUser.role === 'admin') { %>
+                    <a href="/userList">Admin Management Panel</a>
+                <% } %>
+                <a href="/changePassword">Change Password</a>
+                <button id="logoutBtn" class="btn-danger" style="margin-top: 8px;">Logout</button>
             </div>
-            <div>
-                <label for="email">Email Address:</label>
-                <input type="email" id="email" name="email" value="<%= currentUser.email %>" required>
+
+        <% } else { %>
+            <div class="guest-box">
+                <p>You are currently visiting as <strong>Guest</strong>.</p>
+                <p>Please Log in to manage your profile settings.</p>
+                
+                <div class="btn-group" style="margin-top: 16px;">
+                    <button type="button" class="btn-primary" style="margin-top: 0;" onclick="openLoginModal()">Log In</button>
+                    <button type="button" class="btn-secondary" style="margin-top: 0;" onclick="window.location.href='/signup'">Sign Up</button>
+                </div>
             </div>
-            <button type="submit">Save Changes</button>
-        </form>
-
-        <hr>
-
-        <div>
-            <p><a href="/changePassword">Change Password</a></p>
-            <button id="logoutBtn">Logout</button>
-        </div>
+        <% } %>
     </div>
-
+    <%- include('partials/loginModal') %>
     <script>
-        document.getElementById('profileForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const msg = document.getElementById('msg');
-            msg.innerText = '';
+        const profileForm = document.getElementById('profileForm');
+        if (profileForm) {
+            const usernameInput = document.getElementById('username');
+            const emailInput = document.getElementById('email');
+            const editBtn = document.getElementById('editBtn');
+            const actionBtns = document.getElementById('actionBtns');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const originalUsername = usernameInput.value;
+            const originalEmail = emailInput.value;
+            editBtn.addEventListener('click', () => {
+                usernameInput.disabled = false;
+                emailInput.disabled = false;
+                editBtn.style.display = 'none';
+                actionBtns.style.display = 'inline-block';
+            });
+            cancelBtn.addEventListener('click', () => {
+                usernameInput.value = originalUsername;
+                emailInput.value = originalEmail;
+                usernameInput.disabled = true;
+                emailInput.disabled = true;
+                actionBtns.style.display = 'none';
+                editBtn.style.display = 'inline-block';
+                document.getElementById('msg').innerText = '';
+            });
+            profileForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const msg = document.getElementById('msg');
+                msg.innerText = '';
+                const username = usernameInput.value;
+                const email = emailInput.value;
+                try {
+                    const res = await fetch('/auth/updata', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, email })
+                    });
 
-            const username = document.getElementById('username').value;
-            const email = document.getElementById('email').value;
+                    const data = await res.json();
 
-            try {
-                const res = await fetch('/auth/update', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, email })
-                });
-
-                const data = await res.json();
-
-                if (data.success) {
-                    msg.style.color = 'green';
-                    msg.innerText = 'Profile updated successfully!';
-                    setTimeout(() => window.location.reload(), 1000);
-                } else {
+                    if (data.success) {
+                        msg.style.color = 'green';
+                        msg.innerText = 'Profile updated successfully!';
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else {
+                        msg.style.color = 'red';
+                        msg.innerText = data.message || 'Update failed';
+                    }
+                } catch (err) {
                     msg.style.color = 'red';
-                    msg.innerText = data.message || 'Update failed';
+                    msg.innerText = 'System connection error.';
                 }
-            } catch (err) {
-                msg.style.color = 'red';
-                msg.innerText = 'System connection error.';
-            }
-        });
+            });
+        }
 
-        // Logout
-        document.getElementById('logoutBtn').addEventListener('click', async () => {
-            if (!confirm('Are you sure you want to logout?')) return;
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                if (!confirm('Are you sure you want to logout?')) return;
 
-            try {
-                const res = await fetch('/auth/logout', { method: 'POST' });
-                const data = await res.json();
-                if (data.success) {
-                    alert('Logged out successfully!');
-                    window.location.href = '/login';
+                try {
+                    const res = await fetch('/auth/logout', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.success) {
+                        //alert('Logged out successfully!');
+                        window.location.reload(); 
+                    }
+                } catch (err) {
+                    alert('Logout failed');
                 }
-            } catch (err) {
-                alert('Logout failed');
-            }
-        });
+            });
+        }
     </script>
 </body>
 </html>
